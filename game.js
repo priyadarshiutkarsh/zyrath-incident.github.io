@@ -108,20 +108,20 @@ const WALL_HEIGHT = 3;
 const JUMPER_COUNT = 15;
 
 /** @const {number} Base movement speed for enemies (units per frame) */
-const JUMPER_SPEED = 0.04;
+const JUMPER_SPEED = 0.08;
 
 /** @const {number} Chase speed (matched to base speed for consistency) */
-const JUMPER_CHASE_SPEED = 0.04;
+const JUMPER_CHASE_SPEED = 0.08;
 
 /** @const {number} Maximum jump height for arcade-style enemy movement */
 const JUMP_HEIGHT = 1.4;
 
 /** @const {number} Jump animation frequency (normalized 0-1 scale) */
-const JUMP_FREQUENCY = 0.70;
+const JUMP_FREQUENCY = 0.20;
 
 // Camera Settings
 /** @const {number} Height of top-down camera above ground plane */
-const CAMERA_HEIGHT = 13;
+const CAMERA_HEIGHT = 12;
 
 // Combat Configuration
 /** @const {number} Projectile velocity for pistol (units per frame) */
@@ -130,8 +130,8 @@ const BULLET_SPEED = 0.5;
 /** @const {number} Minimum time between pistol shots (milliseconds) */
 const SHOOT_COOLDOWN = 300;
 
-/** @const {number} Effective range for knife melee attacks (world units) - Increased for better gameplay */
-const KNIFE_RANGE = 3.5;
+/** @const {number} Effective range for knife melee attacks (world units) - Circular 360° area, balanced difficulty */
+const KNIFE_RANGE = 2.8;
 
 /** @const {number} Minimum time between knife attacks (milliseconds) */
 const KNIFE_COOLDOWN = 200;
@@ -2057,30 +2057,15 @@ function shoot() {
         // Animate knife swing
         animateKnifeSwing();
         
-        // Get player facing direction from rotation
-        const playerDirection = new THREE.Vector3(
-            Math.sin(playerMesh.rotation.y),
-            0,
-            Math.cos(playerMesh.rotation.y)
-        ).normalize();
-        
-        // Check for jumping enemies in knife range - IN FRONT OF PLAYER
-        console.log(`Knife attack! Checking ${jumpers.length} jumpers. Player facing: ${playerMesh.rotation.y.toFixed(2)} rad`);
+        // Check for jumping enemies in knife range - 360° CIRCULAR AREA
+        // Balanced difficulty: shorter range but hits all around
+        console.log(`Knife attack! Checking ${jumpers.length} jumpers in 360° range`);
         let hitCount = 0;
-        const maxHits = 2; // Allow hitting up to 2 jumpers per swing
+        const maxHits = 1; // Only hit 1 zombie per swing (moderate difficulty)
         
         for (let i = jumpers.length - 1; i >= 0 && hitCount < maxHits; i--) {
             const jumper = jumpers[i];
             const distance = player.position.distanceTo(jumper.position);
-            
-            // Vector from player to jumper
-            const toJumper = new THREE.Vector3()
-                .subVectors(jumper.position, player.position)
-                .normalize();
-            
-            // Calculate dot product to determine if jumper is in front of player
-            const dotProduct = playerDirection.dot(toJumper);
-            const isInFront = dotProduct > 0.5; // Jumper is in front (within ~60 degree cone)
             
             // Check if player and jumper are in the same lane/corridor
             let inSameLane = false;
@@ -2097,10 +2082,11 @@ function shoot() {
                 inSameLane = playerInLaneX && playerInLaneZ;
             }
             
-            // Hit if: in same lane, within range, AND in front of player
-            if (inSameLane && distance < KNIFE_RANGE && isInFront) {
+            // Hit if: in same lane AND within circular range (360° around player)
+            // No direction check - can hit zombies from any angle
+            if (inSameLane && distance < KNIFE_RANGE) {
                 // Kill jumper with knife
-                console.log(`Knife killed jumper ${i} in ${lane.name}! Distance: ${distance.toFixed(2)}, Dot: ${dotProduct.toFixed(2)}`);
+                console.log(`Knife killed jumper ${i} in ${lane.name}! Distance: ${distance.toFixed(2)}`);
                 playHitSound();
                 createExplosion(jumper.position);
                 removeJumper(jumper, i);
